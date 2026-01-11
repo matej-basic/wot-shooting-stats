@@ -26,7 +26,7 @@ map_lookup.refresh_from_api(WOT_API_KEY)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
+    allow_origins=["https://wot-shooting-stats.vercel.app/"],
     allow_methods=["*"],
     allow_headers=["*"],
     allow_credentials=True,
