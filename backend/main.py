@@ -14,7 +14,25 @@ WOT_API_KEY = os.getenv("WOT_API_KEY", "b257be4e7c58952fc322990fe39c72fa")
 VEHICLE_CACHE_PATH = os.getenv("VEHICLE_CACHE_PATH", "utils/vehicles.json")
 MAP_CACHE_PATH = os.getenv("MAP_CACHE_PATH", "utils/maps_cache.json")
 TEMP_UPLOAD_DIR = os.getenv("TEMP_UPLOAD_DIR", "/tmp")
-CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
+CORS_ORIGINS = [
+    o.strip().rstrip("/")
+    for o in os.getenv("CORS_ORIGINS", "*").split(",")
+    if o.strip()
+]
+
+# Optionally append a single frontend origin (useful on Railway)
+FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "").strip().rstrip("/")
+if FRONTEND_ORIGIN:
+    CORS_ORIGINS.append(FRONTEND_ORIGIN)
+
+# De-duplicate and normalize
+CORS_ORIGINS = list(dict.fromkeys(CORS_ORIGINS))
+
+# Support preview domains by default if not explicitly set
+CORS_ORIGIN_REGEX = os.getenv("CORS_ORIGIN_REGEX", r"https://.*\\.vercel\\.app") or None
+
+# Credentials: set to true only if using cookies/auth headers
+CORS_ALLOW_CREDENTIALS = os.getenv("CORS_ALLOW_CREDENTIALS", "false").lower() == "true"
 
 app = FastAPI()
 lookup = VehicleLookup()
@@ -24,12 +42,15 @@ lookup = VehicleLookup(VEHICLE_CACHE_PATH)
 map_lookup = MapLookup()
 map_lookup.refresh_from_api(WOT_API_KEY)
 
+# Configure CORS with explicit origins or regex for preview domains
+# Configure CORS with explicit origins or regex for preview domains
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://wot-shooting-stats.vercel.app/"],
+    allow_origins=CORS_ORIGINS if CORS_ORIGINS != ["*"] else ["*"],
+    allow_origin_regex=CORS_ORIGIN_REGEX,
     allow_methods=["*"],
     allow_headers=["*"],
-    allow_credentials=True,
+    allow_credentials=CORS_ALLOW_CREDENTIALS,
 )
 
 @app.post("/upload-replay")
