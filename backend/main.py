@@ -1,4 +1,5 @@
 import os
+import logging
 from dotenv import load_dotenv
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
@@ -33,6 +34,12 @@ CORS_ORIGIN_REGEX = os.getenv("CORS_ORIGIN_REGEX", r"https://.*\\.vercel\\.app")
 
 # Credentials: set to true only if using cookies/auth headers
 CORS_ALLOW_CREDENTIALS = os.getenv("CORS_ALLOW_CREDENTIALS", "false").lower() == "true"
+
+# Startup logs for CORS configuration
+logging.basicConfig(level=logging.INFO)
+logging.info(f"[CORS] ORIGINS: {CORS_ORIGINS}")
+logging.info(f"[CORS] ORIGIN_REGEX: {CORS_ORIGIN_REGEX}")
+logging.info(f"[CORS] ALLOW_CREDENTIALS: {CORS_ALLOW_CREDENTIALS}")
 
 app = FastAPI()
 lookup = VehicleLookup()
