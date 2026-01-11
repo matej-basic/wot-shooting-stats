@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import StatsTable from "./StatsTable";
 
-const API_URL = process.env.API_URL || "http://localhost:8000";
+const API_URL = process.env.BACKEND_URL || "http://localhost:8000";
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
 interface ReplayUploaderProps {
