@@ -1,0 +1,100 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.production.local
+
+# Node/Frontend
+node_modules/
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+.pnpm-debug.log*
+
+# Python/Backend
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.coverage
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# Docker
+docker-compose.yml
+docker-compose.*.yml
+.dockerignore
+
+# Temporary files
+/tmp
+temp/
+*.tmp
+*.bak
+*.backup
+
+# Replay files
+*.wotreplay
+temp_*.wotreplay
+mali.wotreplay
+replay.wotreplay
+replay.wotreplay.1
+
+# Database
+*.sql
+!schema.sql
+mysql_data/
+.mysql_history
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+*.exe
+*.app
+
+# Project specific
+utils/vehicles.json
+utils/maps_cache.json
+public/shooting_stats.json
+replay_exported/
