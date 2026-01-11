@@ -182,12 +182,13 @@ export default function BattleSelector() {
                                             >
                                                 Edit
                                             </button>
+                                            {/* Edit Modal
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); handleDeleteBattle(battle.id); }}
                                                 className="text-xs px-3 py-1 bg-red-600 text-white rounded-full hover:bg-red-500"
                                             >
                                                 Delete
-                                            </button>
+                                            </button> */}
                                             <span className="text-xs px-3 py-1 bg-blue-600 text-white rounded-full">
                                                 Battle #{battle.id}
                                             </span>
