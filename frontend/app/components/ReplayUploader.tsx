@@ -11,76 +11,110 @@ interface ReplayUploaderProps {
 }
 
 export default function ReplayUploader({ onUploadComplete }: ReplayUploaderProps) {
-    const [file, setFile] = useState<File | null>(null);
+    const [files, setFiles] = useState<File[]>([]);
     const [stats, setStats] = useState<any[]>([]);
     const [metadata, setMetadata] = useState<{ mapDisplayName?: string; playerName?: string } | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+    const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const selectedFile = e.target.files?.[0];
-        if (!selectedFile) return;
+        const selectedFiles = Array.from(e.target.files || []);
+        if (selectedFiles.length === 0) return;
 
-        // Validate file size
-        if (selectedFile.size > MAX_FILE_SIZE) {
-            setError("File too large (max 50MB)");
-            setFile(null);
-            return;
+        const validFiles: File[] = [];
+        const errors: string[] = [];
+
+        for (const file of selectedFiles) {
+            // Validate file size
+            if (file.size > MAX_FILE_SIZE) {
+                errors.push(`${file.name}: File too large (max 50MB)`);
+                continue;
+            }
+
+            // Validate file type
+            if (!file.name.endsWith(".wotreplay")) {
+                errors.push(`${file.name}: Not a .wotreplay file`);
+                continue;
+            }
+
+            validFiles.push(file);
         }
 
-        // Validate file type
-        if (!selectedFile.name.endsWith(".wotreplay")) {
-            setError("Please select a valid .wotreplay file");
-            setFile(null);
-            return;
+        if (errors.length > 0) {
+            setError(errors.join(", "));
+        } else {
+            setError("");
         }
 
-        setError("");
-        setFile(selectedFile);
+        setFiles(validFiles);
     };
 
     const handleUpload = async () => {
-        if (!file) return;
+        if (files.length === 0) return;
 
         setLoading(true);
         setError("");
+        setUploadProgress({ current: 0, total: files.length });
 
-        const formData = new FormData();
-        formData.append("file", file);
+        const errors: string[] = [];
+        let successCount = 0;
 
-        try {
-            const res = await fetch(`${API_URL}/upload-replay`, {
-                method: "POST",
-                body: formData,
-            });
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            setUploadProgress({ current: i + 1, total: files.length });
 
-            if (!res.ok) {
-                throw new Error(`Server error: ${res.status} ${res.statusText}`);
-            }
+            const formData = new FormData();
+            formData.append("file", file);
 
-            const data = await res.json();
-            if (data.error) {
-                setError(data.error);
-            } else if (data.stats && Array.isArray(data.stats)) {
-                setStats(data.stats);
-                setMetadata(data.metadata || null);
-                // Reset file input after successful upload
-                setFile(null);
-                if (fileInputRef.current) {
-                    fileInputRef.current.value = "";
+            try {
+                const res = await fetch(`${API_URL}/upload-replay`, {
+                    method: "POST",
+                    body: formData,
+                });
+
+                if (!res.ok) {
+                    throw new Error(`${file.name}: Server error ${res.status}`);
                 }
-                // Trigger refresh of battle list
-                if (onUploadComplete) {
-                    onUploadComplete();
+
+                const data = await res.json();
+                if (data.error) {
+                    errors.push(`${file.name}: ${data.error}`);
+                } else if (data.stats && Array.isArray(data.stats)) {
+                    successCount++;
+                    // Show stats for the last successful upload
+                    if (i === files.length - 1 || successCount === 1) {
+                        setStats(data.stats);
+                        setMetadata(data.metadata || null);
+                    }
+                } else {
+                    errors.push(`${file.name}: Invalid response format`);
                 }
-            } else {
-                setError("Invalid response format: missing or invalid stats data");
+            } catch (err: any) {
+                errors.push(`${file.name}: ${err.message || "Upload failed"}`);
             }
-        } catch (err: any) {
-            setError(err.message || "Upload failed");
-        } finally {
-            setLoading(false);
+        }
+
+        // Reset file input after all uploads
+        setFiles([]);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
+
+        // Show results
+        if (errors.length > 0) {
+            setError(`${successCount} of ${files.length} uploaded successfully. Errors: ${errors.join("; ")}`);
+        } else {
+            setError("");
+        }
+
+        setLoading(false);
+        setUploadProgress(null);
+
+        // Trigger refresh of battle list
+        if (onUploadComplete && successCount > 0) {
+            onUploadComplete();
         }
     };
 
@@ -95,17 +129,27 @@ export default function ReplayUploader({ onUploadComplete }: ReplayUploaderProps
                     ref={fileInputRef}
                     type="file"
                     accept=".wotreplay"
+                    multiple
                     onChange={handleFileChange}
                     className="mb-4 w-full p-3 border border-gray-600 rounded-lg bg-gray-700 text-gray-200 file:text-gray-300 file:bg-gray-600 file:border-0 file:rounded file:mr-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
 
+                {files.length > 0 && (
+                    <p className="mb-4 text-sm text-gray-300">
+                        {files.length} file{files.length !== 1 ? "s" : ""} selected
+                    </p>
+                )}
 
                 <button
                     onClick={handleUpload}
-                    disabled={!file || loading}
+                    disabled={files.length === 0 || loading}
                     className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed font-semibold transition-colors"
                 >
-                    {loading ? "Processing..." : "Upload & Parse"}
+                    {loading && uploadProgress
+                        ? `Uploading ${uploadProgress.current}/${uploadProgress.total}...`
+                        : loading
+                            ? "Processing..."
+                            : "Upload & Parse"}
                 </button>
 
                 {error && <p className="mt-4 p-3 bg-red-900/30 border border-red-700 text-red-200 rounded-lg text-sm">{error}</p>}
