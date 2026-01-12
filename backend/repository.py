@@ -137,3 +137,106 @@ def update_battle_name(battle_id, battle_name):
     updated = cur.rowcount
     db.commit()
     return {"updated": updated}
+
+
+def get_all_users():
+    """Fetch all users with basic info including overall accuracy."""
+    db = get_db()
+    cur = db.cursor(dictionary=True)
+    cur.execute("""
+        SELECT 
+            u.account_id,
+            u.name,
+            c.tag as clanAbbrev,
+            COUNT(DISTINCT pbs.battle_id) as battle_count,
+            ROUND(SUM(pbs.hits) * 100.0 / NULLIF(SUM(pbs.shots), 0), 2) as overall_accuracy
+        FROM users u
+        LEFT JOIN clans c ON u.clan_id = c.id
+        LEFT JOIN player_battle_stats pbs ON u.account_id = pbs.account_id
+        GROUP BY u.account_id, u.name, c.tag
+        ORDER BY u.name ASC
+    """)
+    return cur.fetchall()
+
+
+def get_user_aggregated_stats(account_id):
+    """Fetch aggregated stats for a user across all battles."""
+    db = get_db()
+    cur = db.cursor(dictionary=True)
+    
+    # Get overall aggregated stats
+    cur.execute("""
+        SELECT 
+            u.name,
+            u.account_id,
+            c.tag as clanAbbrev,
+            COUNT(DISTINCT pbs.battle_id) as total_battles,
+            SUM(pbs.shots) as total_shots,
+            SUM(pbs.hits) as total_hits,
+            SUM(pbs.penetrations) as total_penetrations,
+            SUM(pbs.damage_dealt) as total_damage,
+            ROUND(AVG(pbs.accuracy), 2) as avg_accuracy,
+            ROUND(AVG(pbs.penetration_rate), 2) as avg_penetration_rate,
+            ROUND(AVG(pbs.pen_to_shot_ratio), 2) as avg_pen_to_shot_ratio,
+            ROUND(SUM(pbs.hits) * 100.0 / NULLIF(SUM(pbs.shots), 0), 2) as overall_accuracy,
+            ROUND(SUM(pbs.penetrations) * 100.0 / NULLIF(SUM(pbs.hits), 0), 2) as overall_pen_rate,
+            ROUND(SUM(pbs.penetrations) * 100.0 / NULLIF(SUM(pbs.shots), 0), 2) as overall_pen_ratio
+        FROM users u
+        LEFT JOIN clans c ON u.clan_id = c.id
+        JOIN player_battle_stats pbs ON u.account_id = pbs.account_id
+        WHERE u.account_id = %s
+        GROUP BY u.account_id, u.name, c.tag
+    """, (account_id,))
+    overall = cur.fetchone()
+    
+    if not overall:
+        return None
+    
+    # Get per-vehicle stats
+    cur.execute("""
+        SELECT 
+            v.name as vehicle_name,
+            COUNT(DISTINCT pbs.battle_id) as battles,
+            SUM(pbs.shots) as shots,
+            SUM(pbs.hits) as hits,
+            SUM(pbs.penetrations) as penetrations,
+            SUM(pbs.damage_dealt) as damage,
+            ROUND(SUM(pbs.hits) * 100.0 / NULLIF(SUM(pbs.shots), 0), 2) as accuracy,
+            ROUND(SUM(pbs.penetrations) * 100.0 / NULLIF(SUM(pbs.hits), 0), 2) as pen_rate,
+            ROUND(SUM(pbs.penetrations) * 100.0 / NULLIF(SUM(pbs.shots), 0), 2) as pen_ratio
+        FROM player_battle_stats pbs
+        JOIN vehicles v ON pbs.vehicle_type = v.type_comp_descr
+        WHERE pbs.account_id = %s
+        GROUP BY v.name, pbs.vehicle_type
+        ORDER BY battles DESC, damage DESC
+    """, (account_id,))
+    per_vehicle = cur.fetchall()
+    
+    # Get per-battle details
+    cur.execute("""
+        SELECT 
+            b.id as battle_id,
+            b.battle_name,
+            b.created_at,
+            v.name as vehicle_name,
+            pbs.team,
+            pbs.shots,
+            pbs.hits,
+            pbs.penetrations,
+            pbs.damage_dealt as damage,
+            pbs.accuracy,
+            pbs.penetration_rate as pen_rate,
+            pbs.pen_to_shot_ratio as pen_ratio
+        FROM player_battle_stats pbs
+        JOIN battles b ON pbs.battle_id = b.id
+        JOIN vehicles v ON pbs.vehicle_type = v.type_comp_descr
+        WHERE pbs.account_id = %s
+        ORDER BY b.created_at DESC
+    """, (account_id,))
+    per_battle = cur.fetchall()
+    
+    return {
+        "overall": overall,
+        "per_vehicle": per_vehicle,
+        "per_battle": per_battle
+    }
