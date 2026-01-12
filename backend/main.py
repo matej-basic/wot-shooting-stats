@@ -154,8 +154,8 @@ async def get_battles():
 @app.get("/battles/{battle_id}")
 async def get_battle_details(battle_id: int):
     """Fetch stats for a specific battle."""
-    stats = get_battle_stats(battle_id)
-    return {"battle_id": battle_id, "stats": stats}
+    result = get_battle_stats(battle_id)
+    return {"battle_id": battle_id, "stats": result["players"], "team_averages": result["team_averages"]}
 
 
 @app.delete("/battles/{battle_id}")

@@ -24,9 +24,15 @@ interface StatsTableProps {
         mapDisplayName?: string;
         playerName?: string;
     } | null;
+    teamAverages?: Array<{
+        team: number;
+        avg_accuracy: number;
+        avg_penetration_rate: number;
+        player_count: number;
+    }>;
 }
 
-export default function StatsTable({ stats, metadata }: StatsTableProps) {
+export default function StatsTable({ stats, metadata, teamAverages }: StatsTableProps) {
     const [sortConfig, setSortConfig] = useState<{ key: keyof PlayerStats | null; direction: "asc" | "desc" }>({ key: null, direction: "asc" });
     const [teamFilter, setTeamFilter] = useState<number | null>(null);
 
@@ -38,6 +44,17 @@ export default function StatsTable({ stats, metadata }: StatsTableProps) {
             </div>
         );
     }
+
+    const getTeamAverage = (team: number) => {
+        return teamAverages?.find(ta => ta.team === team);
+    };
+
+    const getAccuracyColor = (accuracy: number): string => {
+        if (accuracy >= 80) return "text-green-400";
+        if (accuracy >= 60) return "text-blue-400";
+        if (accuracy >= 40) return "text-yellow-400";
+        return "text-red-400";
+    };
 
     const requestSort = (key: keyof PlayerStats) => {
         let direction: "asc" | "desc" = "asc";
@@ -75,6 +92,35 @@ export default function StatsTable({ stats, metadata }: StatsTableProps) {
                     <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
                         <div className="text-sm uppercase tracking-wide text-gray-400">Player</div>
                         <div className="text-lg font-semibold text-gray-100">{metadata.playerName || "—"}</div>
+                    </div>
+                </div>
+            )}
+
+            {teamAverages && teamAverages.length > 0 && (
+                <div className="max-w-4xl mx-auto mb-6">
+                    <h3 className="text-lg font-semibold text-gray-300 mb-3 text-center">Team Averages</h3>
+                    <div className="grid gap-3 md:grid-cols-2">
+                        {teamAverages.map(ta => (
+                            <div key={ta.team} className={`border rounded-lg p-4 ${ta.team === 1 ? 'bg-red-900/20 border-red-700' : 'bg-green-900/20 border-green-700'}`}>
+                                <div className="text-sm uppercase tracking-wide text-gray-400 mb-2">
+                                    Team {ta.team} ({ta.player_count} players)
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <div className="text-xs text-gray-400">Avg Accuracy</div>
+                                        <div className={`text-xl font-bold ${getAccuracyColor(ta.avg_accuracy)}`}>
+                                            {ta.avg_accuracy}%
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className="text-xs text-gray-400">Avg Pen Rate</div>
+                                        <div className={`text-xl font-bold ${getAccuracyColor(ta.avg_penetration_rate)}`}>
+                                            {ta.avg_penetration_rate}%
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
             )}

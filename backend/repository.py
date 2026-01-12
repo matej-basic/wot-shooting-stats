@@ -88,6 +88,8 @@ def get_battle_stats(battle_id):
     """Fetch stats for a specific battle with player and clan info."""
     db = get_db()
     cur = db.cursor(dictionary=True)
+    
+    # Get player stats
     cur.execute("""
         SELECT 
             u.name,
@@ -108,7 +110,25 @@ def get_battle_stats(battle_id):
         WHERE pbs.battle_id = %s
         ORDER BY u.name ASC
     """, (battle_id,))
-    return cur.fetchall()
+    player_stats = cur.fetchall()
+    
+    # Get team averages
+    cur.execute("""
+        SELECT 
+            pbs.team,
+            ROUND(AVG(pbs.accuracy), 2) as avg_accuracy,
+            ROUND(AVG(pbs.penetration_rate), 2) as avg_penetration_rate,
+            COUNT(*) as player_count
+        FROM player_battle_stats pbs
+        WHERE pbs.battle_id = %s
+        GROUP BY pbs.team
+    """, (battle_id,))
+    team_averages = cur.fetchall()
+    
+    return {
+        "players": player_stats,
+        "team_averages": team_averages
+    }
 
 
 def delete_battle(battle_id):

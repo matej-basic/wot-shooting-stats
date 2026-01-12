@@ -17,6 +17,7 @@ export default function BattleSelector() {
     const [battles, setBattles] = useState<Battle[]>([]);
     const [selectedBattle, setSelectedBattle] = useState<number | null>(null);
     const [stats, setStats] = useState<any[]>([]);
+    const [teamAverages, setTeamAverages] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [editingBattleId, setEditingBattleId] = useState<number | null>(null);
@@ -42,6 +43,7 @@ export default function BattleSelector() {
         setLoading(true);
         setError("");
         setStats([]);
+        setTeamAverages([]);
 
         try {
             const res = await fetch(`${API_URL}/battles/${battleId}`);
@@ -50,6 +52,7 @@ export default function BattleSelector() {
 
             if (data.stats && Array.isArray(data.stats)) {
                 setStats(data.stats);
+                setTeamAverages(data.team_averages || []);
                 setSelectedBattle(battleId);
             } else {
                 setError("Invalid battle data received");
@@ -154,7 +157,7 @@ export default function BattleSelector() {
                     >
                         ← Back to Battle List
                     </button>
-                    <StatsTable stats={stats} />
+                    <StatsTable stats={stats} teamAverages={teamAverages} />
                 </>
             ) : (
                 <div className="max-w-4xl mx-auto">
