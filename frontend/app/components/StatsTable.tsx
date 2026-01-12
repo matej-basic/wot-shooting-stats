@@ -101,7 +101,7 @@ export default function StatsTable({ stats, metadata, teamAverages }: StatsTable
                 <div className="max-w-4xl mx-auto mb-6">
                     <h3 className="text-lg font-semibold text-gray-300 mb-3 text-center">Team Averages</h3>
                     <div className="grid gap-3 md:grid-cols-2">
-                        {teamAverages.map(ta => (
+                        {[...teamAverages].sort((a, b) => a.team - b.team).map(ta => (
                             <div key={ta.team} className={`border rounded-lg p-4 ${ta.team === 1 ? 'bg-red-900/20 border-red-700' : 'bg-green-900/20 border-green-700'}`}>
                                 <div className="text-sm uppercase tracking-wide text-gray-400 mb-2">
                                     Team {ta.team} ({ta.player_count} players)
