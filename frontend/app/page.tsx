@@ -12,6 +12,7 @@ export default function Home() {
   const [mode, setMode] = useState<AppMode>("view");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const [selectedUserDateRange, setSelectedUserDateRange] = useState<{ startDate: string; endDate: string }>({ startDate: "", endDate: "" });
 
   const handleUploadComplete = () => {
     // Trigger refresh of battle list
@@ -20,8 +21,9 @@ export default function Home() {
     setMode("view");
   };
 
-  const handleUserSelect = (accountId: number) => {
+  const handleUserSelect = (accountId: number, startDate: string, endDate: string) => {
     setSelectedUserId(accountId);
+    setSelectedUserDateRange({ startDate, endDate });
   };
 
   const handleCloseUserStats = () => {
@@ -74,7 +76,12 @@ export default function Home() {
 
       {/* User Stats Modal */}
       {selectedUserId !== null && (
-        <UserStats accountId={selectedUserId} onClose={handleCloseUserStats} />
+        <UserStats
+          accountId={selectedUserId}
+          onClose={handleCloseUserStats}
+          startDate={selectedUserDateRange.startDate}
+          endDate={selectedUserDateRange.endDate}
+        />
       )}
     </div>
   );

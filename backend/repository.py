@@ -139,11 +139,21 @@ def update_battle_name(battle_id, battle_name):
     return {"updated": updated}
 
 
-def get_all_users():
+def get_all_users(start_date=None, end_date=None):
     """Fetch all users with basic info including overall accuracy."""
     db = get_db()
     cur = db.cursor(dictionary=True)
-    cur.execute("""
+    
+    date_filter = ""
+    params = []
+    if start_date:
+        date_filter += " AND b.created_at >= %s"
+        params.append(start_date)
+    if end_date:
+        date_filter += " AND b.created_at <= %s"
+        params.append(end_date)
+    
+    query = f"""
         SELECT 
             u.account_id,
             u.name,
@@ -153,19 +163,31 @@ def get_all_users():
         FROM users u
         LEFT JOIN clans c ON u.clan_id = c.id
         LEFT JOIN player_battle_stats pbs ON u.account_id = pbs.account_id
+        LEFT JOIN battles b ON pbs.battle_id = b.id
+        WHERE 1=1 {date_filter}
         GROUP BY u.account_id, u.name, c.tag
         ORDER BY u.name ASC
-    """)
+    """
+    cur.execute(query, params)
     return cur.fetchall()
 
 
-def get_user_aggregated_stats(account_id):
+def get_user_aggregated_stats(account_id, start_date=None, end_date=None):
     """Fetch aggregated stats for a user across all battles."""
     db = get_db()
     cur = db.cursor(dictionary=True)
     
+    date_filter = ""
+    params = [account_id]
+    if start_date:
+        date_filter += " AND b.created_at >= %s"
+        params.append(start_date)
+    if end_date:
+        date_filter += " AND b.created_at <= %s"
+        params.append(end_date)
+    
     # Get overall aggregated stats
-    cur.execute("""
+    query = f"""
         SELECT 
             u.name,
             u.account_id,
@@ -184,16 +206,24 @@ def get_user_aggregated_stats(account_id):
         FROM users u
         LEFT JOIN clans c ON u.clan_id = c.id
         JOIN player_battle_stats pbs ON u.account_id = pbs.account_id
-        WHERE u.account_id = %s
+        JOIN battles b ON pbs.battle_id = b.id
+        WHERE u.account_id = %s {date_filter}
         GROUP BY u.account_id, u.name, c.tag
-    """, (account_id,))
+    """
+    cur.execute(query, params)
     overall = cur.fetchone()
     
     if not overall:
         return None
     
     # Get per-vehicle stats
-    cur.execute("""
+    vehicle_params = [account_id]
+    if start_date:
+        vehicle_params.append(start_date)
+    if end_date:
+        vehicle_params.append(end_date)
+    
+    vehicle_query = f"""
         SELECT 
             v.name as vehicle_name,
             COUNT(DISTINCT pbs.battle_id) as battles,
@@ -206,14 +236,22 @@ def get_user_aggregated_stats(account_id):
             ROUND(SUM(pbs.penetrations) * 100.0 / NULLIF(SUM(pbs.shots), 0), 2) as pen_ratio
         FROM player_battle_stats pbs
         JOIN vehicles v ON pbs.vehicle_type = v.type_comp_descr
-        WHERE pbs.account_id = %s
+        JOIN battles b ON pbs.battle_id = b.id
+        WHERE pbs.account_id = %s {date_filter}
         GROUP BY v.name, pbs.vehicle_type
         ORDER BY battles DESC, damage DESC
-    """, (account_id,))
+    """
+    cur.execute(vehicle_query, vehicle_params)
     per_vehicle = cur.fetchall()
     
     # Get per-battle details
-    cur.execute("""
+    battle_params = [account_id]
+    if start_date:
+        battle_params.append(start_date)
+    if end_date:
+        battle_params.append(end_date)
+    
+    battle_query = f"""
         SELECT 
             b.id as battle_id,
             b.battle_name,
@@ -230,9 +268,10 @@ def get_user_aggregated_stats(account_id):
         FROM player_battle_stats pbs
         JOIN battles b ON pbs.battle_id = b.id
         JOIN vehicles v ON pbs.vehicle_type = v.type_comp_descr
-        WHERE pbs.account_id = %s
+        WHERE pbs.account_id = %s {date_filter}
         ORDER BY b.created_at DESC
-    """, (account_id,))
+    """
+    cur.execute(battle_query, battle_params)
     per_battle = cur.fetchall()
     
     return {

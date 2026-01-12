@@ -11,7 +11,7 @@ interface User {
 }
 
 interface UserListProps {
-    onUserSelect: (accountId: number) => void;
+    onUserSelect: (accountId: number, startDate: string, endDate: string) => void;
 }
 
 type SortField = "name" | "accuracy";
@@ -26,16 +26,24 @@ export default function UserList({ onUserSelect }: UserListProps) {
     const [sortField, setSortField] = useState<SortField>("name");
     const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
     const [clanFilter, setClanFilter] = useState<string>("all");
+    const [startDate, setStartDate] = useState<string>("");
+    const [endDate, setEndDate] = useState<string>("");
 
     useEffect(() => {
         fetchUsers();
-    }, []);
+    }, [startDate, endDate]);
 
     const fetchUsers = async () => {
         setLoading(true);
         setError("");
         try {
-            const res = await fetch(`${API_URL}/users`);
+            let url = `${API_URL}/users`;
+            const params = new URLSearchParams();
+            if (startDate) params.append("start_date", startDate);
+            if (endDate) params.append("end_date", endDate);
+            if (params.toString()) url += `?${params.toString()}`;
+
+            const res = await fetch(url);
             if (!res.ok) {
                 throw new Error(`Failed to fetch users: ${res.status}`);
             }
@@ -94,15 +102,16 @@ export default function UserList({ onUserSelect }: UserListProps) {
 
     return (
         <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
-            <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold text-white">Players</h2>
+            <h2 className="text-2xl font-bold text-white mb-4">Players</h2>
 
-                <div className="flex items-center gap-2">
-                    <label className="text-gray-300 text-sm">Filter by Clan:</label>
+            {/* Filters */}
+            <div className="mb-4 flex flex-wrap gap-4 items-end">
+                <div className="flex-1 min-w-[200px]">
+                    <label className="text-gray-300 text-sm block mb-1">Filter by Clan:</label>
                     <select
                         value={clanFilter}
                         onChange={(e) => setClanFilter(e.target.value)}
-                        className="bg-gray-700 text-gray-200 border border-gray-600 rounded px-3 py-2 focus:outline-none focus:border-blue-500"
+                        className="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded px-3 py-2 focus:outline-none focus:border-blue-500"
                     >
                         <option value="all">All Clans</option>
                         <option value="no-clan">No Clan</option>
@@ -111,6 +120,35 @@ export default function UserList({ onUserSelect }: UserListProps) {
                         ))}
                     </select>
                 </div>
+
+                <div className="flex-1 min-w-[200px]">
+                    <label className="text-gray-300 text-sm block mb-1">Start Date:</label>
+                    <input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded px-3 py-2 focus:outline-none focus:border-blue-500"
+                    />
+                </div>
+
+                <div className="flex-1 min-w-[200px]">
+                    <label className="text-gray-300 text-sm block mb-1">End Date:</label>
+                    <input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        className="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded px-3 py-2 focus:outline-none focus:border-blue-500"
+                    />
+                </div>
+
+                {(startDate || endDate) && (
+                    <button
+                        onClick={() => { setStartDate(""); setEndDate(""); }}
+                        className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-500 transition-colors"
+                    >
+                        Clear Dates
+                    </button>
+                )}
             </div>
 
             {loading && <p className="text-gray-400">Loading players...</p>}
@@ -157,7 +195,7 @@ export default function UserList({ onUserSelect }: UserListProps) {
                                     </td>
                                     <td className="px-4 py-2 text-center">
                                         <button
-                                            onClick={() => onUserSelect(user.account_id)}
+                                            onClick={() => onUserSelect(user.account_id, startDate, endDate)}
                                             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500 transition-colors"
                                         >
                                             View Stats

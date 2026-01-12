@@ -5,6 +5,8 @@ import { useState, useEffect } from "react";
 interface UserStatsProps {
     accountId: number;
     onClose: () => void;
+    startDate?: string;
+    endDate?: string;
 }
 
 interface OverallStats {
@@ -53,7 +55,7 @@ interface BattleStats {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-export default function UserStats({ accountId, onClose }: UserStatsProps) {
+export default function UserStats({ accountId, onClose, startDate, endDate }: UserStatsProps) {
     const [stats, setStats] = useState<{
         overall: OverallStats;
         per_vehicle: VehicleStats[];
@@ -71,7 +73,13 @@ export default function UserStats({ accountId, onClose }: UserStatsProps) {
         setLoading(true);
         setError("");
         try {
-            const res = await fetch(`${API_URL}/users/${accountId}`);
+            let url = `${API_URL}/users/${accountId}`;
+            const params = new URLSearchParams();
+            if (startDate) params.append("start_date", startDate);
+            if (endDate) params.append("end_date", endDate);
+            if (params.toString()) url += `?${params.toString()}`;
+
+            const res = await fetch(url);
             if (!res.ok) {
                 throw new Error(`Failed to fetch user stats: ${res.status}`);
             }
@@ -144,8 +152,8 @@ export default function UserStats({ accountId, onClose }: UserStatsProps) {
                     <button
                         onClick={() => setActiveTab("overall")}
                         className={`flex-1 px-6 py-3 font-semibold transition-colors ${activeTab === "overall"
-                                ? "bg-blue-600 text-white"
-                                : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-700 text-gray-300 hover:bg-gray-600"
                             }`}
                     >
                         Overall Stats
@@ -153,8 +161,8 @@ export default function UserStats({ accountId, onClose }: UserStatsProps) {
                     <button
                         onClick={() => setActiveTab("vehicles")}
                         className={`flex-1 px-6 py-3 font-semibold transition-colors ${activeTab === "vehicles"
-                                ? "bg-blue-600 text-white"
-                                : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-700 text-gray-300 hover:bg-gray-600"
                             }`}
                     >
                         By Vehicle ({stats.per_vehicle.length})
@@ -162,8 +170,8 @@ export default function UserStats({ accountId, onClose }: UserStatsProps) {
                     <button
                         onClick={() => setActiveTab("battles")}
                         className={`flex-1 px-6 py-3 font-semibold transition-colors ${activeTab === "battles"
-                                ? "bg-blue-600 text-white"
-                                : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-700 text-gray-300 hover:bg-gray-600"
                             }`}
                     >
                         Battle History ({stats.per_battle.length})

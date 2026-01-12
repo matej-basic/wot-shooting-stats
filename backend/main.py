@@ -195,16 +195,16 @@ async def update_battle_endpoint(battle_id: int, battle_name: str):
 
 
 @app.get("/users")
-async def get_users():
+async def get_users(start_date: str = None, end_date: str = None):
     """Fetch all users with their battle counts."""
-    users = get_all_users()
+    users = get_all_users(start_date, end_date)
     return {"users": users}
 
 
 @app.get("/users/{account_id}")
-async def get_user_stats(account_id: int):
+async def get_user_stats(account_id: int, start_date: str = None, end_date: str = None):
     """Fetch aggregated stats for a specific user across all battles."""
-    stats = get_user_aggregated_stats(account_id)
+    stats = get_user_aggregated_stats(account_id, start_date, end_date)
     if not stats:
         return {"status": "not_found", "message": f"User {account_id} not found or has no stats."}
     return {"account_id": account_id, "stats": stats}
