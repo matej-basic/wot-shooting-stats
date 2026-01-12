@@ -28,6 +28,7 @@ interface StatsTableProps {
         team: number;
         avg_accuracy: number;
         avg_penetration_rate: number;
+        avg_pen_to_shot_ratio: number;
         player_count: number;
     }>;
 }
@@ -105,7 +106,7 @@ export default function StatsTable({ stats, metadata, teamAverages }: StatsTable
                                 <div className="text-sm uppercase tracking-wide text-gray-400 mb-2">
                                     Team {ta.team} ({ta.player_count} players)
                                 </div>
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-3 gap-3">
                                     <div>
                                         <div className="text-xs text-gray-400">Avg Accuracy</div>
                                         <div className={`text-xl font-bold ${getAccuracyColor(ta.avg_accuracy)}`}>
@@ -116,6 +117,12 @@ export default function StatsTable({ stats, metadata, teamAverages }: StatsTable
                                         <div className="text-xs text-gray-400">Avg Pen Rate</div>
                                         <div className={`text-xl font-bold ${getAccuracyColor(ta.avg_penetration_rate)}`}>
                                             {ta.avg_penetration_rate}%
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className="text-xs text-gray-400">Avg Pen/Shot</div>
+                                        <div className={`text-xl font-bold ${getAccuracyColor(ta.avg_pen_to_shot_ratio)}`}>
+                                            {ta.avg_pen_to_shot_ratio}%
                                         </div>
                                     </div>
                                 </div>

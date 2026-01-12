@@ -118,6 +118,7 @@ def get_battle_stats(battle_id):
             pbs.team,
             ROUND(AVG(pbs.accuracy), 2) as avg_accuracy,
             ROUND(AVG(pbs.penetration_rate), 2) as avg_penetration_rate,
+            ROUND(AVG(pbs.pen_to_shot_ratio), 2) as avg_pen_to_shot_ratio,
             COUNT(*) as player_count
         FROM player_battle_stats pbs
         WHERE pbs.battle_id = %s
