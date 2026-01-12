@@ -14,13 +14,19 @@ interface PlayerStats {
     accuracy: number;
     penetrationRate: number;
     penToShotRatio: number;
+    mapDisplayName?: string;
+    playerName?: string;
 }
 
 interface StatsTableProps {
     stats: PlayerStats[];
+    metadata?: {
+        mapDisplayName?: string;
+        playerName?: string;
+    } | null;
 }
 
-export default function StatsTable({ stats }: StatsTableProps) {
+export default function StatsTable({ stats, metadata }: StatsTableProps) {
     const [sortConfig, setSortConfig] = useState<{ key: keyof PlayerStats | null; direction: "asc" | "desc" }>({ key: null, direction: "asc" });
     const [teamFilter, setTeamFilter] = useState<number | null>(null);
 
@@ -59,6 +65,19 @@ export default function StatsTable({ stats }: StatsTableProps) {
     return (
         <div className="p-6 bg-gray-900 min-h-screen text-gray-200">
             <h1 className="text-3xl font-bold mb-6 text-center text-white">WoT Shooting Stats</h1>
+
+            {metadata && (
+                <div className="max-w-4xl mx-auto mb-6 grid gap-3 md:grid-cols-2 text-center">
+                    <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+                        <div className="text-sm uppercase tracking-wide text-gray-400">Map</div>
+                        <div className="text-lg font-semibold text-gray-100">{metadata.mapDisplayName || "—"}</div>
+                    </div>
+                    <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+                        <div className="text-sm uppercase tracking-wide text-gray-400">Player</div>
+                        <div className="text-lg font-semibold text-gray-100">{metadata.playerName || "—"}</div>
+                    </div>
+                </div>
+            )}
 
             <div className="flex justify-center mb-6">
                 <div className="flex gap-3">

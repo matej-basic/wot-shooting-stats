@@ -12,8 +12,8 @@ interface ReplayUploaderProps {
 
 export default function ReplayUploader({ onUploadComplete }: ReplayUploaderProps) {
     const [file, setFile] = useState<File | null>(null);
-    const [battleName, setBattleName] = useState<string>("Battle");
     const [stats, setStats] = useState<any[]>([]);
+    const [metadata, setMetadata] = useState<{ mapDisplayName?: string; playerName?: string } | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -48,7 +48,6 @@ export default function ReplayUploader({ onUploadComplete }: ReplayUploaderProps
 
         const formData = new FormData();
         formData.append("file", file);
-        formData.append("battle_name", battleName || "Battle");
 
         try {
             const res = await fetch(`${API_URL}/upload-replay`, {
@@ -65,9 +64,9 @@ export default function ReplayUploader({ onUploadComplete }: ReplayUploaderProps
                 setError(data.error);
             } else if (data.stats && Array.isArray(data.stats)) {
                 setStats(data.stats);
-                // Reset file input and name after successful upload
+                setMetadata(data.metadata || null);
+                // Reset file input after successful upload
                 setFile(null);
-                setBattleName("Battle");
                 if (fileInputRef.current) {
                     fileInputRef.current.value = "";
                 }
@@ -100,18 +99,6 @@ export default function ReplayUploader({ onUploadComplete }: ReplayUploaderProps
                     className="mb-4 w-full p-3 border border-gray-600 rounded-lg bg-gray-700 text-gray-200 file:text-gray-300 file:bg-gray-600 file:border-0 file:rounded file:mr-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
 
-                <div className="mb-4">
-                    <label className="block text-sm font-semibold text-gray-300 mb-2">
-                        Battle Name
-                    </label>
-                    <input
-                        type="text"
-                        value={battleName}
-                        onChange={(e) => setBattleName(e.target.value)}
-                        placeholder="e.g., Ranked Battle, Tournament, Practice"
-                        className="w-full p-3 border border-gray-600 rounded-lg bg-gray-700 text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                </div>
 
                 <button
                     onClick={handleUpload}
@@ -124,7 +111,7 @@ export default function ReplayUploader({ onUploadComplete }: ReplayUploaderProps
                 {error && <p className="mt-4 p-3 bg-red-900/30 border border-red-700 text-red-200 rounded-lg text-sm">{error}</p>}
             </div>
 
-            {stats.length > 0 && <StatsTable stats={stats} />}
+            {stats.length > 0 && <StatsTable stats={stats} metadata={metadata} />}
         </div>
     );
 }

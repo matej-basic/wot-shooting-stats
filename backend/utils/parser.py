@@ -17,6 +17,26 @@ class Parser:
                 self.battle_data.append(string_obj)
             self.counter += 1
 
+    def get_metadata(self):
+        """
+        Return the first JSON object (replay metadata) if present.
+        Example keys include: clientVersionFromXml, mapDisplayName, clientVersionFromExe,
+        regionCode, playerName, serverName.
+        """
+        return self.replay_metadata or {}
+
+    def get_metadata_fields(self):
+        """Convenience accessor that extracts the commonly-used metadata fields."""
+        meta = self.get_metadata()
+        return {
+            "clientVersionFromXml": meta.get("clientVersionFromXml"),
+            "clientVersionFromExe": meta.get("clientVersionFromExe"),
+            "mapDisplayName": meta.get("mapDisplayName"),
+            "regionCode": meta.get("regionCode"),
+            "playerName": meta.get("playerName"),
+            "serverName": meta.get("serverName"),
+        }
+
     @staticmethod
     def __extract_json_objects(text, decoder=JSONDecoder()):
         """

@@ -67,10 +67,19 @@ async def upload_replay(file: UploadFile = File(...), battle_name: str = Form("B
         f.write(await file.read())
 
     data = parse_replay(path)
+    metadata = data.get("metadata", {})
+
+    # Derive battle name from metadata when available
+    derived_battle_name = None
+    map_name = metadata.get("mapDisplayName")
+    player_name = metadata.get("playerName")
+    if map_name and player_name:
+        derived_battle_name = f"{map_name} - {player_name}"
 
     common_data = data["common"]
     battle_timestamp = common_data.get("arenaCreateTime")
-    battle_id = create_battle(battle_name, battle_timestamp)
+    battle_name_effective = derived_battle_name or battle_name or "Battle"
+    battle_id = create_battle(battle_name_effective, battle_timestamp)
 
     stats_list = []
 
@@ -129,10 +138,12 @@ async def upload_replay(file: UploadFile = File(...), battle_name: str = Form("B
                     "damageDealt": damage,
                     "accuracy": accuracy,
                     "penetrationRate": pen_rate,
-                    "penToShotRatio": pen_ratio
+                    "penToShotRatio": pen_ratio,
+                    "mapDisplayName": metadata.get("mapDisplayName"),
+                    "playerName": metadata.get("playerName"),
                 })
 
-    return {"battle_id": battle_id, "stats": stats_list}
+    return {"battle_id": battle_id, "metadata": metadata, "stats": stats_list}
 
 @app.get("/battles")
 async def get_battles():
