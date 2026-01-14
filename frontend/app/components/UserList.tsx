@@ -6,6 +6,7 @@ interface User {
     account_id: number;
     name: string;
     clanAbbrev?: string;
+    personal_rating?: number;
     battle_count: number;
     overall_accuracy: number;
 }
@@ -14,7 +15,7 @@ interface UserListProps {
     onUserSelect: (accountId: number, startDate: string, endDate: string) => void;
 }
 
-type SortField = "name" | "accuracy";
+type SortField = "name" | "accuracy" | "rating";
 type SortDirection = "asc" | "desc";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -80,6 +81,8 @@ export default function UserList({ onUserSelect }: UserListProps) {
             comparison = a.name.localeCompare(b.name);
         } else if (sortField === "accuracy") {
             comparison = (a.overall_accuracy || 0) - (b.overall_accuracy || 0);
+        } else if (sortField === "rating") {
+            comparison = (a.personal_rating || 0) - (b.personal_rating || 0);
         }
 
         return sortDirection === "asc" ? comparison : -comparison;
@@ -98,6 +101,15 @@ export default function UserList({ onUserSelect }: UserListProps) {
         if (accuracy >= 60) return "text-blue-400";
         if (accuracy >= 40) return "text-yellow-400";
         return "text-red-400";
+    };
+
+    const getRatingColor = (rating: number | undefined): string => {
+        if (!rating) return "text-gray-500";
+        if (rating >= 7000) return "text-purple-400";
+        if (rating >= 5000) return "text-blue-400";
+        if (rating >= 3000) return "text-green-400";
+        if (rating >= 1500) return "text-yellow-400";
+        return "text-orange-400";
     };
 
     return (
@@ -174,6 +186,12 @@ export default function UserList({ onUserSelect }: UserListProps) {
                                     Player Name {getSortIcon("name")}
                                 </th>
                                 <th className="px-4 py-3 text-center text-gray-200 font-semibold">Clan</th>
+                                <th
+                                    className="px-4 py-3 text-center text-gray-200 font-semibold cursor-pointer hover:bg-gray-500 transition-colors"
+                                    onClick={() => handleSort("rating")}
+                                >
+                                    Rating {getSortIcon("rating")}
+                                </th>
                                 <th className="px-4 py-3 text-center text-gray-200 font-semibold">Battles</th>
                                 <th
                                     className="px-4 py-3 text-center text-gray-200 font-semibold cursor-pointer hover:bg-gray-500 transition-colors"
@@ -189,6 +207,9 @@ export default function UserList({ onUserSelect }: UserListProps) {
                                 <tr key={user.account_id} className={idx % 2 === 0 ? "bg-gray-700" : "bg-gray-600"}>
                                     <td className="px-4 py-2 text-left text-gray-200">{user.name}</td>
                                     <td className="px-4 py-2 text-center text-gray-200">{user.clanAbbrev || "-"}</td>
+                                    <td className={`px-4 py-2 text-center font-semibold ${getRatingColor(user.personal_rating)}`}>
+                                        {user.personal_rating?.toLocaleString() || "-"}
+                                    </td>
                                     <td className="px-4 py-2 text-center text-gray-200">{user.battle_count}</td>
                                     <td className={`px-4 py-2 text-center font-semibold ${getAccuracyColor(user.overall_accuracy)}`}>
                                         {user.overall_accuracy ? `${user.overall_accuracy}%` : "-"}

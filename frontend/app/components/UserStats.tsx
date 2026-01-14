@@ -24,6 +24,7 @@ interface OverallStats {
     overall_accuracy: number;
     overall_pen_rate: number;
     overall_pen_ratio: number;
+    personal_rating?: number;
 }
 
 interface VehicleStats {
@@ -51,6 +52,7 @@ interface BattleStats {
     accuracy: number;
     pen_rate: number;
     pen_ratio: number;
+    personal_rating?: number;
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -188,6 +190,11 @@ export default function UserStats({ accountId, onClose, startDate, endDate }: Us
                             <StatCard label="Total Penetrations" value={stats.overall.total_penetrations.toLocaleString()} />
                             <StatCard label="Total Damage" value={stats.overall.total_damage.toLocaleString()} />
                             <StatCard
+                                label="Personal Rating"
+                                value={stats.overall.personal_rating?.toLocaleString() || "—"}
+                                color={getRatingColor(stats.overall.personal_rating)}
+                            />
+                            <StatCard
                                 label="Overall Accuracy"
                                 value={`${stats.overall.overall_accuracy}%`}
                                 color={getAccuracyColor(stats.overall.overall_accuracy)}
@@ -255,6 +262,7 @@ export default function UserStats({ accountId, onClose, startDate, endDate }: Us
                                         <th className="px-4 py-3 text-left text-gray-200 font-semibold">Battle</th>
                                         <th className="px-4 py-3 text-left text-gray-200 font-semibold">Date</th>
                                         <th className="px-4 py-3 text-left text-gray-200 font-semibold">Vehicle</th>
+                                        <th className="px-4 py-3 text-center text-gray-200 font-semibold">Rating</th>
                                         <th className="px-4 py-3 text-center text-gray-200 font-semibold">Team</th>
                                         <th className="px-4 py-3 text-center text-gray-200 font-semibold">Shots</th>
                                         <th className="px-4 py-3 text-center text-gray-200 font-semibold">Hits</th>
@@ -271,6 +279,9 @@ export default function UserStats({ accountId, onClose, startDate, endDate }: Us
                                                 {new Date(battle.created_at).toLocaleDateString()}
                                             </td>
                                             <td className="px-4 py-2 text-left text-gray-200">{battle.vehicle_name}</td>
+                                            <td className={`px-4 py-2 text-center font-semibold ${getRatingColor(battle.personal_rating)}`}>
+                                                {battle.personal_rating || "—"}
+                                            </td>
                                             <td className="px-4 py-2 text-center text-gray-200">{battle.team}</td>
                                             <td className="px-4 py-2 text-center text-gray-200">{battle.shots}</td>
                                             <td className="px-4 py-2 text-center text-gray-200">{battle.hits}</td>
@@ -319,4 +330,13 @@ function getPenRatioColor(penRatio: number): string {
     if (penRatio >= 50) return "text-blue-400";
     if (penRatio >= 30) return "text-yellow-400";
     return "text-red-400";
+}
+
+function getRatingColor(rating: number | undefined): string {
+    if (!rating) return "text-gray-500";
+    if (rating >= 7000) return "text-purple-400";
+    if (rating >= 5000) return "text-blue-400";
+    if (rating >= 3000) return "text-green-400";
+    if (rating >= 1500) return "text-yellow-400";
+    return "text-orange-400";
 }

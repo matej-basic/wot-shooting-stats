@@ -14,6 +14,7 @@ interface PlayerStats {
     accuracy: number;
     penetrationRate: number;
     penToShotRatio: number;
+    personalRating?: number;
     mapDisplayName?: string;
     playerName?: string;
 }
@@ -55,6 +56,15 @@ export default function StatsTable({ stats, metadata, teamAverages }: StatsTable
         if (accuracy >= 60) return "text-blue-400";
         if (accuracy >= 40) return "text-yellow-400";
         return "text-red-400";
+    };
+
+    const getRatingColor = (rating: number | undefined): string => {
+        if (!rating) return "text-gray-500";
+        if (rating >= 7000) return "text-purple-400";
+        if (rating >= 5000) return "text-blue-400";
+        if (rating >= 3000) return "text-green-400";
+        if (rating >= 1500) return "text-yellow-400";
+        return "text-orange-400";
     };
 
     const requestSort = (key: keyof PlayerStats) => {
@@ -172,6 +182,7 @@ export default function StatsTable({ stats, metadata, teamAverages }: StatsTable
                                 { key: "name", label: "Player" },
                                 { key: "clanAbbrev", label: "Clan" },
                                 { key: "vehicleName", label: "Vehicle" },
+                                { key: "personalRating", label: "Rating" },
                                 { key: "shots", label: "Shots" },
                                 { key: "hits", label: "Hits" },
                                 { key: "penetrations", label: "Penetrations" },
@@ -200,6 +211,9 @@ export default function StatsTable({ stats, metadata, teamAverages }: StatsTable
                                 <td className="px-4 py-2 border-b border-gray-600 text-left">{row.name}</td>
                                 <td className="px-4 py-2 border-b border-gray-600 text-left">{row.clanAbbrev || "—"}</td>
                                 <td className="px-4 py-2 border-b border-gray-600 text-left">{row.vehicleName}</td>
+                                <td className={`px-4 py-2 border-b border-gray-600 font-semibold ${getRatingColor(row.personalRating)}`}>
+                                    {row.personalRating || "—"}
+                                </td>
                                 <td className="px-4 py-2 border-b border-gray-600">{row.shots}</td>
                                 <td className="px-4 py-2 border-b border-gray-600">{row.hits}</td>
                                 <td className="px-4 py-2 border-b border-gray-600">{row.penetrations}</td>
