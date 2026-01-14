@@ -102,7 +102,8 @@ def get_battle_stats(battle_id):
             pbs.damage_dealt as damageDealt,
             pbs.accuracy,
             pbs.penetration_rate as penetrationRate,
-            pbs.pen_to_shot_ratio as penToShotRatio
+            pbs.pen_to_shot_ratio as penToShotRatio,
+            u.personal_rating as personalRating
         FROM player_battle_stats pbs
         JOIN users u ON pbs.account_id = u.account_id
         LEFT JOIN clans c ON u.clan_id = c.id
@@ -179,6 +180,7 @@ def get_all_users(start_date=None, end_date=None):
             u.account_id,
             u.name,
             c.tag as clanAbbrev,
+            u.personal_rating,
             COUNT(DISTINCT pbs.battle_id) as battle_count,
             ROUND(SUM(pbs.hits) * 100.0 / NULLIF(SUM(pbs.shots), 0), 2) as overall_accuracy
         FROM users u
@@ -186,7 +188,7 @@ def get_all_users(start_date=None, end_date=None):
         LEFT JOIN player_battle_stats pbs ON u.account_id = pbs.account_id
         LEFT JOIN battles b ON pbs.battle_id = b.id
         WHERE 1=1 {date_filter}
-        GROUP BY u.account_id, u.name, c.tag
+        GROUP BY u.account_id, u.name, c.tag, u.personal_rating
         ORDER BY u.name ASC
     """
     cur.execute(query, params)
@@ -213,6 +215,7 @@ def get_user_aggregated_stats(account_id, start_date=None, end_date=None):
             u.name,
             u.account_id,
             c.tag as clanAbbrev,
+            u.personal_rating,
             COUNT(DISTINCT pbs.battle_id) as total_battles,
             SUM(pbs.shots) as total_shots,
             SUM(pbs.hits) as total_hits,
@@ -229,7 +232,7 @@ def get_user_aggregated_stats(account_id, start_date=None, end_date=None):
         JOIN player_battle_stats pbs ON u.account_id = pbs.account_id
         JOIN battles b ON pbs.battle_id = b.id
         WHERE u.account_id = %s {date_filter}
-        GROUP BY u.account_id, u.name, c.tag
+        GROUP BY u.account_id, u.name, c.tag, u.personal_rating
     """
     cur.execute(query, params)
     overall = cur.fetchone()
@@ -285,10 +288,12 @@ def get_user_aggregated_stats(account_id, start_date=None, end_date=None):
             pbs.damage_dealt as damage,
             pbs.accuracy,
             pbs.penetration_rate as pen_rate,
-            pbs.pen_to_shot_ratio as pen_ratio
+            pbs.pen_to_shot_ratio as pen_ratio,
+            u.personal_rating
         FROM player_battle_stats pbs
         JOIN battles b ON pbs.battle_id = b.id
         JOIN vehicles v ON pbs.vehicle_type = v.type_comp_descr
+        JOIN users u ON pbs.account_id = u.account_id
         WHERE pbs.account_id = %s {date_filter}
         ORDER BY b.created_at DESC
     """
