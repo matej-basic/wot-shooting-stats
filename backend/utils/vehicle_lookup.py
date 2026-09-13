@@ -56,4 +56,4 @@ class VehicleLookup:
             self.tank_data = vehicles_data
             print(f"[VehicleLookup] Vehicle data refreshed: {len(self.tank_data)} entries saved.")
         except Exception as e:
-            print(f"[VehicleLookup] Failed to refresh from API: {e}")
+            print(f"[VehicleLookup] Failed to refresh from API: {str(e).replace(api_key, '<redacted>') if api_key else e}")
