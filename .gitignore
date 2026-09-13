@@ -55,8 +55,7 @@ dmypy.json
 *.sublime-project
 *.sublime-workspace
 
-# Docker
-docker-compose.yml
+# Docker (docker-compose.yml is tracked; local overrides are not)
 docker-compose.*.yml
 .dockerignore
 
@@ -74,9 +73,15 @@ mali.wotreplay
 replay.wotreplay
 replay.wotreplay.1
 
-# Database
+# Parser output (event_parser.py / shots.py runs)
+*.parsed
+/output.json
+/output.novi
+
+# Database: dumps stay out, schema and migrations are tracked
 *.sql
-!schema.sql
+!backend/schema.sql
+!backend/migrations/*.sql
 mysql_data/
 .mysql_history
 
