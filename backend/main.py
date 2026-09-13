@@ -1,23 +1,42 @@
 import os
 import logging
+import tempfile
 from dotenv import load_dotenv
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from auth import require_admin
 from replay_parser import parse_replay
 from repository import *
 from utils.vehicle_lookup import VehicleLookup
 from utils.map_lookup import MapLookup
 
 load_dotenv()
+logging.basicConfig(level=logging.INFO)
 
 # Environment variables
-WOT_API_KEY = os.getenv("WOT_API_KEY", "b257be4e7c58952fc322990fe39c72fa")
+WOT_API_KEY = os.getenv("WOT_API_KEY", "").strip()
+if not WOT_API_KEY:
+    raise RuntimeError(
+        "WOT_API_KEY is not set. Set it to your Wargaming application ID "
+        "(https://developers.wargaming.net/applications/) before starting the backend."
+    )
+
 VEHICLE_CACHE_PATH = os.getenv("VEHICLE_CACHE_PATH", "utils/vehicles.json")
 MAP_CACHE_PATH = os.getenv("MAP_CACHE_PATH", "utils/maps_cache.json")
 TEMP_UPLOAD_DIR = os.getenv("TEMP_UPLOAD_DIR", "/tmp")
+
+# Uploads
+REPLAY_SUFFIX = ".wotreplay"
+MAX_UPLOAD_BYTES = 20 * 1024 * 1024  # 20 MB per replay file
+MULTIPART_OVERHEAD_BYTES = 64 * 1024  # room for multipart framing and the battle_name field
+UPLOAD_CHUNK_BYTES = 1024 * 1024
+
+# CORS
+DEFAULT_CORS_ORIGINS = "https://wot-shooting-stats.vercel.app,http://localhost:3000"
 CORS_ORIGINS = [
     o.strip().rstrip("/")
-    for o in os.getenv("CORS_ORIGINS", "*").split(",")
+    for o in (os.getenv("CORS_ORIGINS", "").strip() or DEFAULT_CORS_ORIGINS).split(",")
     if o.strip()
 ]
 
@@ -29,19 +48,31 @@ if FRONTEND_ORIGIN:
 # De-duplicate and normalize
 CORS_ORIGINS = list(dict.fromkeys(CORS_ORIGINS))
 
-# Support preview domains by default if not explicitly set
-CORS_ORIGIN_REGEX = os.getenv("CORS_ORIGIN_REGEX", r"https://.*\\.vercel\\.app") or None
+# Optional regex for extra origins such as Vercel preview deployments. No default:
+# it is matched against the whole origin, so anchor it to this project's previews.
+CORS_ORIGIN_REGEX = os.getenv("CORS_ORIGIN_REGEX", "").strip() or None
 
 # Credentials: set to true only if using cookies/auth headers
 CORS_ALLOW_CREDENTIALS = os.getenv("CORS_ALLOW_CREDENTIALS", "false").lower() == "true"
 
+# Methods the front end uses (GET lists, POST uploads, PUT renames a battle)
+CORS_ALLOW_METHODS = ["GET", "POST", "PUT"]
+
 # Startup logs for CORS configuration
-logging.basicConfig(level=logging.INFO)
 logging.info(f"[CORS] ORIGINS: {CORS_ORIGINS}")
 logging.info(f"[CORS] ORIGIN_REGEX: {CORS_ORIGIN_REGEX}")
 logging.info(f"[CORS] ALLOW_CREDENTIALS: {CORS_ALLOW_CREDENTIALS}")
+if "*" in CORS_ORIGINS:
+    logging.warning("[CORS] CORS_ORIGINS contains '*': every website may call this API from a browser.")
 
-app = FastAPI()
+# Interactive docs (/docs, /redoc, /openapi.json) only when ENABLE_DOCS=1
+ENABLE_DOCS = os.getenv("ENABLE_DOCS", "").strip().lower() in ("1", "true", "yes")
+
+app = FastAPI(
+    docs_url="/docs" if ENABLE_DOCS else None,
+    redoc_url="/redoc" if ENABLE_DOCS else None,
+    openapi_url="/openapi.json" if ENABLE_DOCS else None,
+)
 lookup = VehicleLookup()
 lookup.refresh_from_api(WOT_API_KEY)
 lookup = VehicleLookup(VEHICLE_CACHE_PATH)
@@ -49,24 +80,65 @@ lookup = VehicleLookup(VEHICLE_CACHE_PATH)
 map_lookup = MapLookup()
 map_lookup.refresh_from_api(WOT_API_KEY)
 
-# Configure CORS with explicit origins or regex for preview domains
-# Configure CORS with explicit origins or regex for preview domains
+
+@app.middleware("http")
+async def limit_upload_size(request: Request, call_next):
+    """Refuse oversized uploads from their Content-Length, before the body is read."""
+    if request.method == "POST" and request.url.path == "/upload-replay":
+        length = request.headers.get("content-length")
+        if length is not None and (
+            not length.isdigit() or int(length) > MAX_UPLOAD_BYTES + MULTIPART_OVERHEAD_BYTES
+        ):
+            return JSONResponse(
+                status_code=413,
+                content={"detail": f"Upload too large; the limit is {MAX_UPLOAD_BYTES // (1024 * 1024)} MB."},
+            )
+    return await call_next(request)
+
+
+# Added last so it wraps the other middleware and error responses carry CORS headers
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS if CORS_ORIGINS != ["*"] else ["*"],
+    allow_origins=CORS_ORIGINS,
     allow_origin_regex=CORS_ORIGIN_REGEX,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=CORS_ALLOW_METHODS,
+    allow_headers=["Content-Type"],
     allow_credentials=CORS_ALLOW_CREDENTIALS,
 )
 
+
 @app.post("/upload-replay")
 async def upload_replay(file: UploadFile = File(...), battle_name: str = Form("Battle")):
-    path = f"{TEMP_UPLOAD_DIR}/{file.filename}"
-    with open(path, "wb") as f:
-        f.write(await file.read())
+    if not (file.filename or "").lower().endswith(REPLAY_SUFFIX):
+        raise HTTPException(status_code=400, detail=f"Only {REPLAY_SUFFIX} files are accepted.")
 
-    data = parse_replay(path)
+    # Save under a server-generated name; the client's filename is never used as a path.
+    path = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, dir=TEMP_UPLOAD_DIR, suffix=REPLAY_SUFFIX) as tmp:
+            path = tmp.name
+            size = 0
+            while chunk := await file.read(UPLOAD_CHUNK_BYTES):
+                size += len(chunk)
+                if size > MAX_UPLOAD_BYTES:
+                    raise HTTPException(
+                        status_code=413,
+                        detail=f"Upload too large; the limit is {MAX_UPLOAD_BYTES // (1024 * 1024)} MB.",
+                    )
+                tmp.write(chunk)
+
+        try:
+            data = parse_replay(path)
+        except Exception:
+            logging.exception("[upload-replay] Failed to parse uploaded replay")
+            raise HTTPException(status_code=400, detail="The file could not be parsed as a replay.")
+    finally:
+        if path:
+            try:
+                os.remove(path)
+            except FileNotFoundError:
+                pass
+
     metadata = data.get("metadata", {})
 
     # Derive battle name from metadata when available
@@ -158,36 +230,17 @@ async def get_battle_details(battle_id: int):
     return {"battle_id": battle_id, "stats": result["players"], "team_averages": result["team_averages"]}
 
 
-@app.delete("/battles/{battle_id}")
+@app.delete("/battles/{battle_id}", dependencies=[Depends(require_admin)])
 async def delete_battle_endpoint(battle_id: int):
-    """Delete a battle and its associated player stats."""
+    """Delete a battle and its associated player stats. Requires ADMIN_TOKEN."""
     result = delete_battle(battle_id)
     if result.get("battles_deleted", 0) == 0:
         return {"status": "not_found", "message": f"Battle {battle_id} not found."}
     return {"status": "ok", "result": result}
 
-@app.post("/debug-replay")
-async def debug_replay(file: UploadFile = File(...)):
-    """Debug endpoint to inspect player data structure."""
-    path = f"{TEMP_UPLOAD_DIR}/{file.filename}"
-    with open(path, "wb") as f:
-        f.write(await file.read())
-
-    data = parse_replay(path)
-    
-    # Return first player's data structure for debugging
-    first_player_id = next(iter(data["players"].keys()))
-    first_player = data["players"][first_player_id]
-    
-    return {
-        "first_player_keys": list(first_player.keys()),
-        "first_player_data": first_player,
-        "sample_vehicles": data["vehicles"]
-    }
-
-@app.put("/battles/{battle_id}")
-async def update_battle_endpoint(battle_id: int, battle_name: str):
-    """Update battle name."""
+@app.put("/battles/{battle_id}", dependencies=[Depends(require_admin)])
+async def update_battle_endpoint(battle_id: int, battle_name: str = Query(..., min_length=1, max_length=255)):
+    """Update battle name. Requires ADMIN_TOKEN."""
     result = update_battle_name(battle_id, battle_name)
     if result.get("updated", 0) == 0:
         return {"status": "not_found", "message": f"Battle {battle_id} not found."}
