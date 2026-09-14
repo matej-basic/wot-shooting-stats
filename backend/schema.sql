@@ -13,7 +13,11 @@ CREATE TABLE users (
     account_id BIGINT PRIMARY KEY,
     name VARCHAR(255),
     clan_id BIGINT,
-    FOREIGN KEY (clan_id) REFERENCES clans(id) ON DELETE SET NULL
+    -- WoT personal rating, same columns as migrations/add_wn8.sql
+    personal_rating INT DEFAULT NULL,
+    rating_updated_at TIMESTAMP NULL DEFAULT NULL,
+    FOREIGN KEY (clan_id) REFERENCES clans(id) ON DELETE SET NULL,
+    INDEX idx_user_rating (personal_rating)
 );
 
 -- VEHICLES

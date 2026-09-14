@@ -1,0 +1,64 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: wot_mysql
+    restart: always
+    environment:
+      # Local development credentials only
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: wot_stats
+      MYSQL_USER: wot_user
+      MYSQL_PASSWORD: wot_password
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./backend/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    ports:
+      - "3306:3306"
+
+  backend:
+    build: ./backend
+    container_name: wot_backend
+    restart: always
+    depends_on:
+      - mysql
+    # WOT_API_KEY (and ADMIN_TOKEN, ENABLE_DOCS where the backend reads them)
+    # come from backend/.env, which python-dotenv loads from the mounted /app.
+    # Copy backend/.env.example to backend/.env to start. Values set below win
+    # over backend/.env, because load_dotenv() does not override the environment.
+    environment:
+      # Database: the container talks to the mysql service
+      DATABASE_HOST: mysql
+      DATABASE_PORT: 3306
+      DATABASE_NAME: wot_stats
+      DATABASE_USER: wot_user
+      DATABASE_PASSWORD: wot_password
+      # File paths
+      VEHICLE_CACHE_PATH: utils/vehicles.json
+      MAP_CACHE_PATH: utils/maps_cache.json
+      TEMP_UPLOAD_DIR: /tmp
+      # CORS
+      CORS_ORIGINS: http://localhost:3000,http://localhost:8000
+      FRONTEND_ORIGIN: http://localhost:3000
+      CORS_ORIGIN_REGEX: ""
+      CORS_ALLOW_CREDENTIALS: "false"
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build: ./frontend
+    container_name: wot_frontend
+    restart: always
+    depends_on:
+      - backend
+    environment:
+      # The browser calls the API directly, so this must be a host address.
+      # Next.js inlines NEXT_PUBLIC_* at build time; the code falls back to
+      # http://localhost:8000 when the variable is missing during the build.
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+
+volumes:
+  mysql_data:
