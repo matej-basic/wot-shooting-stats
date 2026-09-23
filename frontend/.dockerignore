@@ -1,0 +1,7 @@
+# Build context is frontend/. The image builds from source; these are local only.
+.env
+.env.*
+!.env.example
+node_modules/
+.next/
+out/
