@@ -57,7 +57,7 @@ dmypy.json
 
 # Docker (docker-compose.yml is tracked; local overrides are not)
 docker-compose.*.yml
-.dockerignore
+# .dockerignore files are part of the build and must be committed.
 
 # Temporary files
 /tmp

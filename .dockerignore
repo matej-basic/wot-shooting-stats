@@ -1,0 +1,17 @@
+# Only used if an image is ever built from the repository root.
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+**/venv/
+**/__pycache__/
+*.py[cod]
+.git/
+node_modules/
+frontend/.next/
+frontend/out/
+*.wotreplay
+*.parsed
+output.json
+output.novi

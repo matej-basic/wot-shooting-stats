@@ -1,0 +1,9 @@
+# Build context is backend/. Keep secrets and local environments out of the image.
+.env
+.env.*
+!.env.example
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.log
