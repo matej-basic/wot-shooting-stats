@@ -2,6 +2,13 @@ import requests
 import json
 from datetime import datetime
 
+
+def _redact(value, secret):
+    """Hide the application ID in messages that echo the request URL or params."""
+    text = str(value)
+    return text.replace(secret, "<redacted>") if secret else text
+
+
 class MapLookup:
     def __init__(self, cache_file="utils/maps_cache.json"):
         self.cache_file = cache_file
@@ -30,21 +37,21 @@ class MapLookup:
                 "language": language,
                 "fields": "arena_id,name_i18n,description"
             }
-            print(f"[MapLookup] Requesting arenas from API: {url} params={params}")
+            print(f"[MapLookup] Requesting arenas from API: {url} (language={language})")
             response = requests.get(url, params=params, timeout=10)
             print(f"[MapLookup] HTTP status: {response.status_code}")
             try:
                 response.raise_for_status()
             except Exception as e:
-                print(f"[MapLookup] HTTP error while fetching arenas: {e}")
-                print(f"[MapLookup] Response body: {response.text[:1000]}")
+                print(f"[MapLookup] HTTP error while fetching arenas: {_redact(e, api_key)}")
+                print(f"[MapLookup] Response body: {_redact(response.text[:1000], api_key)}")
                 return False
 
             try:
                 data = response.json()
             except Exception as e:
                 print(f"[MapLookup] Failed to parse JSON response: {e}")
-                print(f"[MapLookup] Response text: {response.text[:1000]}")
+                print(f"[MapLookup] Response text: {_redact(response.text[:1000], api_key)}")
                 return False
 
             print(f"[MapLookup] API returned status field: {data.get('status')}")
@@ -63,10 +70,10 @@ class MapLookup:
                 print(f"[MapLookup] Cached {len(self.maps)} maps to '{self.cache_file}'")
                 return True
             else:
-                print(f"[MapLookup] API error: {data.get('error')}")
+                print(f"[MapLookup] API error: {_redact(data.get('error'), api_key)}")
                 return False
         except Exception as e:
-            print(f"Failed to refresh maps from API: {e}")
+            print(f"Failed to refresh maps from API: {_redact(e, api_key)}")
             return False
     
     def save_cache(self):
