@@ -39,6 +39,7 @@ python3 shots.py path/to/replay.wotreplay > output.json     # shot statistics as
 - `frontend/`: Next.js 16 with React 19 and Tailwind CSS 4. The pages are client components and call the backend directly from the browser at `NEXT_PUBLIC_API_URL`.
 - `docker-compose.yml` runs MySQL, the backend and the front end for local work. MySQL loads `backend/schema.sql` the first time its data volume is created.
 - The front end is deployed on Vercel. The backend runs on any host with Python 3.11 and a MySQL database.
+- Each build context has a `.dockerignore`, so `backend/.env` and `backend/venv` stay out of the images.
 
 ## Running locally
 
@@ -113,26 +114,38 @@ Backend, read in `backend/main.py` and `backend/db.py`:
 
 | Variable | Used for |
 |---|---|
-| `WOT_API_KEY` | Wargaming application ID |
+| `WOT_API_KEY` | Wargaming application ID. Required: the backend refuses to start without it |
 | `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_NAME`, `DATABASE_USER`, `DATABASE_PASSWORD` | MySQL connection; the defaults are `localhost`, `3306`, `wot_stats`, `wot_user`, `wot_password` |
 | `VEHICLE_CACHE_PATH` | JSON file with vehicle names, `utils/vehicles.json` by default |
 | `MAP_CACHE_PATH` | read by `main.py`, but `MapLookup` still uses its own `utils/maps_cache.json` |
 | `TEMP_UPLOAD_DIR` | where uploaded replays are written, `/tmp` by default |
 | `CORS_ORIGINS` | comma-separated list of allowed origins |
 | `FRONTEND_ORIGIN` | one more allowed origin, added to that list |
-| `CORS_ORIGIN_REGEX` | regular expression for further origins, such as Vercel preview domains |
+| `CORS_ORIGIN_REGEX` | regular expression for further origins, such as Vercel preview domains. No default: set it only if you need it, since a pattern like `https://.*\.vercel\.app` admits anyone's Vercel site |
 | `CORS_ALLOW_CREDENTIALS` | `true` to allow cookies and auth headers, `false` by default |
-| `ADMIN_TOKEN` | bearer token for the routes that rename or delete battles; without it those routes are off |
+| `ADMIN_TOKEN` | bearer token for the routes that rename or delete battles. Without it both routes answer 404 |
 | `ENABLE_DOCS` | `1` turns on `/docs`, `/redoc` and `/openapi.json` |
 
-`ADMIN_TOKEN` and `ENABLE_DOCS` come with the `fix/security` branch, which also makes `WOT_API_KEY` required: the backend refuses to start without it. Until that branch is merged, `main.py` ignores the two new variables and does not require the key.
+`CORS_ORIGINS` defaults to the deployed front end plus `http://localhost:3000`. Setting it to `*` turns CORS off as a protection, and the backend logs a warning when it sees one.
 
 `backend/backfill_user_ratings.py` reads `WOT_API_KEY` (required), `WOT_REGION` (`eu` by default) and `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`. Each `DB_*` variable falls back to its `DATABASE_*` counterpart, so the script works with the same `backend/.env` as the backend.
 
 Front end: `NEXT_PUBLIC_API_URL` is the backend URL as the browser sees it, `http://localhost:8000` by default. Next.js writes it into the bundle at build time, so changing it needs a new build.
 
+## Renaming and deleting battles
+
+Both routes need `ADMIN_TOKEN`, and the front end does not call them: a browser cannot hold that token without handing it to every visitor. Use the command line.
+
+```bash
+curl -X PUT "$API/battles/12?battle_name=Malinovka" -H "Authorization: Bearer $ADMIN_TOKEN"
+curl -X DELETE "$API/battles/12" -H "Authorization: Bearer $ADMIN_TOKEN"
+```
+
+With `ADMIN_TOKEN` unset, both answer 404, which is also what an unauthenticated caller sees.
+
 ## Limits
 
+- Uploading is open to anyone who can reach the API. There is no account system and no rate limit, so a public deployment accepts replays from strangers. Uploads must end in `.wotreplay` and stay under 20 MB, and the file is deleted once it is parsed.
 - The binary event stream is not decoded. There is no per-shot data such as timing, target or position, only the totals the game writes into block 2.
 - The backend still uses the text parser described above, not `event_parser.py`. Spaces and non-ASCII characters inside names are lost, and the parser reads only up to the first newline byte in the file.
 - Every upload creates a new battle. `replay_parser.py` reads the replay's `arenaUniqueID` but nothing stores it, so when two players from the same battle both upload their replays, that battle and all 30 players in it are counted twice in every total.
