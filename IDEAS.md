@@ -36,6 +36,9 @@ Neither service had Serverless on, so both ran all day.
   the first reading, so check it again after a day.
 - Serverless enabled on the backend service.
 - `GET /battles` answered 200 in 0.17 s afterwards, with the existing data.
+- Public TCP proxy on MySQL removed, which also deleted `MYSQL_PUBLIC_URL`.
+  The backend connects through `mysql.railway.internal`, so it was unaffected.
+  For local access use `railway connect MySQL` instead.
 
 Expected saving is about $1.45 a month on MySQL and most of the backend's
 $0.90, so the account should land near the $5 included. It may still go
@@ -47,9 +50,6 @@ slightly over.
   take the project close to zero, but it needs a test first: a database with a
   volume waking after a long idle period makes the first request slow (the
   backend's response time chart already showed one 14 s spike).
-- **Public TCP proxy on MySQL** is enabled (see MySQL, Settings, Networking),
-  so the database is reachable from the internet. Check that the backend uses
-  `mysql.railway.internal`, then remove the proxy. Not a cost issue.
 - **Cold starts download the vehicle list.** With the backend asleep most of
   the time, every wake-up fetches it from the Wargaming API and rewrites
   `utils/vehicles.json` (see README, Architecture). Fine at 47 requests a
